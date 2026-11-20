@@ -1,0 +1,57 @@
+name: Agentes RevoEnergy
+
+on:
+  schedule:
+    - cron: "17 * * * *"   # cada hora
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "¿Publicar en WordPress los posts aprobados? (si/no)"
+        default: "no"
+      max_por_ciclo:
+        description: "Máximo de posts a trabajar en este ciclo"
+        default: "2"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agentes-revoenergy
+  cancel-in-progress: false
+
+jobs:
+  ciclo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          sudo apt-get install -y libcairo2 > /dev/null
+          pip install -r requirements.txt
+
+      - name: Ejecutar agentes
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          WP_USER: ${{ secrets.WP_USER }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          MODELO: ${{ vars.MODELO }}
+          SHEET_ID: ${{ vars.SHEET_ID }}
+          PUBLICAR: ${{ github.event.inputs.publicar || 'no' }}
+          MAX_POR_CICLO: ${{ github.event.inputs.max_por_ciclo || '2' }}
+        run: python run.py
+
+      - name: Guardar imágenes y vista previa en el repositorio
+        run: |
+          git config user.name "agentes-revoenergy"
+          git config user.email "agentes-revoenergy@users.noreply.github.com"
+          git add salida || true
+          git diff --cached --quiet || (git commit -m "Ciclo de agentes $(date -u +%Y-%m-%dT%H:%MZ)" && git push)
