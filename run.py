@@ -49,7 +49,19 @@ def procesar(hoja, n, post, sitio, lineamientos):
         hoja.log("ilustrador", pid, f"Imágenes creadas: {archivos}")
 
 
+def revisar_claves():
+    faltan = [k for k in ("GOOGLE_SA_JSON", "OPENROUTER_API_KEY", "SERPER_API_KEY") if not (os.environ.get(k) or "").strip()]
+    if PUBLICAR:
+        faltan += [k for k in ("WP_USER", "WP_APP_PASSWORD") if not (os.environ.get(k) or "").strip()]
+    if faltan:
+        raise SystemExit(
+            "FALTAN CLAVES en GitHub (Settings → Secrets and variables → Actions → New repository secret): "
+            + ", ".join(faltan)
+        )
+
+
 def main():
+    revisar_claves()
     inicio = time.time()
     hoja = Hoja()
     sitios = hoja.sitios()
