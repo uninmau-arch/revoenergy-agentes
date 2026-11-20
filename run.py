@@ -25,7 +25,15 @@ LIMITE_SEGUNDOS = 50 * 60
 
 def procesar(hoja, n, post, sitio, lineamientos):
     pid = post["ID"]
+    if post["ESTADO"] == "pendiente" and post["INVESTIGACION"].strip():
+        # La investigación ya la hizo un agente de Muse: pasamos directo a redactar
+        hoja.actualizar(n, ESTADO="redactando")
+        post["ESTADO"] = "redactando"
+
     if post["ESTADO"] == "pendiente":
+        if not (os.environ.get("SERPER_API_KEY") or "").strip():
+            hoja.log("investigador", pid, "Sin investigación en la columna E y sin SERPER_API_KEY: esperando al agente investigador de Muse")
+            return
         hoja.actualizar(n, ESTADO="investigando")
         analisis, fuentes = investigar(post["TEMA"], sitio)
         hoja.actualizar(n, INVESTIGACION=analisis, FUENTES=fuentes, ESTADO="redactando")
@@ -50,7 +58,7 @@ def procesar(hoja, n, post, sitio, lineamientos):
 
 
 def revisar_claves():
-    faltan = [k for k in ("GOOGLE_SA_JSON", "OPENROUTER_API_KEY", "SERPER_API_KEY") if not (os.environ.get(k) or "").strip()]
+    faltan = [k for k in ("GOOGLE_SA_JSON", "OPENROUTER_API_KEY") if not (os.environ.get(k) or "").strip()]
     if PUBLICAR:
         faltan += [k for k in ("WP_USER", "WP_APP_PASSWORD") if not (os.environ.get(k) or "").strip()]
     if faltan:
